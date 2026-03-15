@@ -4,7 +4,7 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { OutlinePass } from "three/addons/postprocessing/OutlinePass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
-import { BoardState, BoardObject, type StackUserData } from "./ui/ui.js";
+import { BoardState, BoardObject, type StackUserData } from "../ui/ui.js";
 
 const focusBoard = document.getElementById("board");
 if (!focusBoard) throw new Error("Element #board not found");
