@@ -7,10 +7,14 @@
     "watch": "tsc --watch"
   },
   "devDependencies": {
+    "@types/three": "^0.183.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "three": "^0.183.2"
   },
   "dependencies": {
     "cors": "^2.8.6",

@@ -1,8 +1,145 @@
 :root {
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+--nav-h: 64px;
+--sidebar-w: 320px;
+--gap: 16px;
+--panel-bg: #131a2a;
+--panel-border: #263248;
+--text: #e5e7eb;
+--muted: #9ca3af;
+--page-bg: #0b1020;
+}
+
+
+html,
+body {
+width: 100%;
+height: 100%;
+margin: 0;
 }
 
 body {
-  margin: 0;
-  padding: 2rem;
+color: var(--text);
+background: var(--page-bg);
+font-family:
+Inter,
+system-ui,
+-apple-system,
+Segoe UI,
+Roboto,
+Arial,
+sans-serif;
+}
+
+.app-shell {
+width: 100%;
+height: 100%;
+display: grid;
+grid-template-columns: 1fr;
+grid-template-rows: var(--nav-h) 1fr;
+grid-template-areas:
+"nav"
+"main";
+}
+
+.board-layout-nav {
+grid-area: nav;
+display: flex;
+align-items: center;
+padding: 0 16px;
+border-bottom: 1px solid var(--panel-border);
+background: rgba(19, 26, 42, 0.9);
+}
+
+.board-layout-main {
+grid-area: main;
+min-width: 0;
+min-height: 0;
+display: grid;
+place-items: center;
+padding: var(--gap);
+}
+
+.board-stage {
+display: grid;
+grid-template-columns: auto var(--sidebar-w);
+gap: 0;
+align-items: stretch;
+max-width: 100%;
+max-height: 100%;
+}
+
+.board-layout-focusboard {
+width: min(72vh, calc(100vw - var(--sidebar-w) - 64px));
+aspect-ratio: 1 / 1;
+border: 1px solid var(--panel-border);
+border-right: 0;
+border-radius: 12px 0 0 12px;
+overflow: hidden;
+background: #0f172a;
+}
+
+.board-single {
+width: 100%;
+height: 100%;
+}
+
+.board-single canvas {
+display: block;
+width: 100% !important;
+height: 100% !important;
+}
+
+.board-layout-sidebar {
+width: var(--sidebar-w);
+min-width: var(--sidebar-w);
+border: 1px solid var(--panel-border);
+border-radius: 0 12px 12px 0;
+background: rgba(19, 26, 42, 0.9);
+padding: 12px;
+overflow: auto;
+display: grid;
+grid-auto-rows: min-content;
+gap: 12px;
+}
+
+.sidebar-panel {
+border: 1px solid var(--panel-border);
+border-radius: 10px;
+padding: 12px;
+background: rgba(15, 23, 42, 0.75);
+}
+
+.sidebar-panel h2 {
+margin: 0 0 8px;
+font-size: 0.95rem;
+}
+
+.sidebar-panel p {
+margin: 0;
+color: var(--muted);
+}
+
+.moves-list {
+margin: 0;
+padding-left: 18px;
+color: var(--muted);
+}
+
+@media (max-width: 980px) {
+.board-stage {
+grid-template-columns: 1fr;
+gap: 12px;
+}
+
+.board-layout-focusboard {
+width: min(94vw, calc(100vh - var(--nav-h) - 180px));
+border-right: 1px solid var(--panel-border);
+border-radius: 12px;
+}
+
+.board-layout-sidebar {
+width: 100%;
+min-width: 0;
+border-radius: 12px;
+}
 }
