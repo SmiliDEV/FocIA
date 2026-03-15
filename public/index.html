@@ -4,10 +4,36 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>FocIA</title>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.183.2/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.183.2/examples/jsm/"
+        }
+      }
+    </script>
+
     <link rel="stylesheet" href="../src/styles.css" />
   </head>
   <body>
-    <main id="app"></main>
+    <div class="app-shell">
+      <header id="board-layout-nav" class="board-layout-nav">
+        <h1>FocIA</h1>
+      </header>
+
+      <main id="board-layout-main" class="board-layout-main">
+        <section id="board-layout-focusboard" class="board-layout-focusboard">
+          <div id="board" class="board-single"></div>
+        </section>
+      </main>
+
+      <aside id="board-layout-sidebar" class="board-layout-sidebar">
+        <h2>Info</h2>
+        <p>Select a stack to preview moves.</p>
+      </aside>
+    </div>
+
     <script type="module" src="../built/main.js"></script>
   </body>
 </html>

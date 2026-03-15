@@ -7,6 +7,10 @@
     "watch": "tsc --watch"
   },
   "devDependencies": {
+    "@types/three": "^0.183.1",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "three": "^0.183.2"
   }
 }
