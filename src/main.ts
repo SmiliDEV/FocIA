@@ -131,7 +131,27 @@ canvas.addEventListener("mouseleave", () => {
   boardObject.unintersectStack();
 });
 
-canvas.addEventListener("click", (event: MouseEvent) => {
+let pointerDown = false;
+let downX = 0;
+let downY = 0;
+const DRAG_THRESHOLD_PX = 6;
+
+canvas.addEventListener("pointerdown", (event: PointerEvent) => {
+  pointerDown = true;
+  downX = event.clientX;
+  downY = event.clientY;
+});
+
+canvas.addEventListener("pointerup", (event: PointerEvent) => {
+  if (!pointerDown) return;
+  pointerDown = false;
+
+  const dx = event.clientX - downX;
+  const dy = event.clientY - downY;
+  const moved = Math.hypot(dx, dy) > DRAG_THRESHOLD_PX;
+
+  if (moved) return; // drag detected, skip click logic
+
   if (!updateMouseFromEvent(event)) return;
 
   raycaster.setFromCamera(mouse, camera);
