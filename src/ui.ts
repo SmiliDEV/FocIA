@@ -75,8 +75,8 @@ const testBoard: Stack[][] = [
 export class BoardState {
   private turn: Color = "red";
   private players: Record<Color, Player> = {
-    red: { color: "red", capturedPieces: 0, reservedPieces: 0 },
-    green: { color: "green", capturedPieces: 0, reservedPieces: 0 },
+    red: { color: "red", capturedPieces: 0, reservedPieces: 2 },
+    green: { color: "green", capturedPieces: 0, reservedPieces: 2 },
   };
   private _board: Stack[][];
 
@@ -160,18 +160,18 @@ export class BoardState {
     return true;
   }
 
-	playReserve(toRow: number, toCol: number): boolean {
-		if (!this.haveReservedPieces(this.turn)) return false;
-		if (this.getStack(toRow, toCol) === null) return false;
+  playReserve(toRow: number, toCol: number): boolean {
+    if (!this.haveReservedPieces(this.turn)) return false;
+    if (this.getStack(toRow, toCol) === null) return false;
 
-		this._board[toRow][toCol] = [
-			...(this.getStack(toRow, toCol) ?? []),
-			{ color: this.turn },
-		];
-		this.players[this.turn].reservedPieces--;
-		this.turn = this.turn === "red" ? "green" : "red";
-		return true;
-	}
+    this._board[toRow][toCol] = [
+      ...(this.getStack(toRow, toCol) ?? []),
+      { color: this.turn },
+    ];
+    this.players[this.turn].reservedPieces--;
+    this.turn = this.turn === "red" ? "green" : "red";
+    return true;
+  }
 
   isStackMovable(row: number, col: number): boolean {
     const stack = this.getStack(row, col);
@@ -200,7 +200,7 @@ export class BoardObject {
   private selectedOutlinePass: OutlinePass;
   private intersectedOutlinePass: OutlinePass;
   private targetOutlinePass: OutlinePass;
-  private toggleReservePlay: boolean = false;
+  private ghostMesh: THREE.Mesh | null = null;
 
   constructor(
     boardState: BoardState,
@@ -227,42 +227,9 @@ export class BoardObject {
     this.setupScene(scene);
   }
 
-  public toggleReserveMode() {
-    if (!this.boardState.haveReservedPieces(this.boardState.getTurn())) return;
-
-    this.toggleReservePlay = !this.toggleReservePlay;
-    if (!this.toggleReservePlay) {
-      this.targetOutlinePass.selectedObjects = [];
-    }
-  }
-
   public intersectStack(obj: THREE.Object3D) {
-    // if reserve mode is toggled on and the object is a stack mesh
-    if (
-      this.toggleReservePlay &&
-      this.isStackMesh(obj) &&
-      this.isStackMesh(obj)
-    ) {
-      this.intersectedOutlinePass.selectedObjects = [obj];
-    } else {
-      this.intersectedOutlinePass.selectedObjects = [];
-    }
-
-    // if there are target objects, only outline those and ignore others
-    if (this.targetOutlinePass.selectedObjects.length > 0) {
-      if (this.targetOutlinePass.selectedObjects.includes(obj)) {
-        this.intersectedOutlinePass.selectedObjects = [obj];
-      } else {
-        this.intersectedOutlinePass.selectedObjects = [];
-      }
-      return;
-    }
-
     // if the object is not a stack mesh, don't outline it
-    if (
-      this.isStackMesh(obj) &&
-      this.boardState.isStackMovable(obj.userData.row, obj.userData.col)
-    ) {
+    if (this.isStackMesh(obj)) {
       this.intersectedOutlinePass.selectedObjects = [obj];
     } else {
       this.intersectedOutlinePass.selectedObjects = [];
@@ -277,14 +244,17 @@ export class BoardObject {
     const { row, col } = obj.userData;
     const key = row + ":" + col;
 
-    // if reserve mode is toggled on, play a piece from reserve to the clicked cell (if valid) and exit reserve mode
-    if (this.toggleReservePlay) {
+    // if the same stack is selected, unselect it or play reserve if possible
+    if (this.selectedStackKey === key && this.isStackMesh(obj)) {
       if (this.boardState.haveReservedPieces(this.boardState.getTurn())) {
-        this.boardState.playReserve(row, col);
-        this.updateMeshes();
+        const played = this.boardState.playReserve(row, col);
+        if (played) {
+          this.unselectStack();
+          this.updateMeshes();
+        }
+      } else {
+        this.unselectStack();
       }
-      this.toggleReservePlay = false;
-      this.targetOutlinePass.selectedObjects = [];
       return;
     }
 
@@ -293,34 +263,35 @@ export class BoardObject {
       if (this.targetOutlinePass.selectedObjects.includes(obj)) {
         if (!this.selectedStackKey) return;
 
-        this.boardState.playMove(
+        const played = this.boardState.playMove(
           Number(this.selectedStackKey?.split(":")[0]),
           Number(this.selectedStackKey?.split(":")[1]),
           row,
           col
         );
 
-        this.unselectStack();
-        this.updateMeshes();
+        if (played) {
+          this.unselectStack();
+          this.updateMeshes();
+        }
       } else {
         this.unselectStack();
         return;
       }
-    } else {
-      if (!this.isStackMesh(obj) || !this.boardState.isStackMovable(row, col)) {
-        this.unselectStack();
-        return;
-      }
+    }
+    if (!this.isStackMesh(obj)) {
+      this.unselectStack();
+      return;
+    }
 
-      if (this.selectedStackKey === key) {
-        this.selectedStackKey = null;
-        this.selectedOutlinePass.selectedObjects = [];
-        this.targetOutlinePass.selectedObjects = [];
-      } else {
-        this.selectedStackKey = key;
-        this.selectedOutlinePass.selectedObjects = [obj];
-        this.updateTargetOutlineForMoves(row, col);
-      }
+    this.selectedStackKey = key;
+    this.selectedOutlinePass.selectedObjects = [obj];
+
+    if (this.boardState.isStackMovable(row, col)) {
+      this.updateTargetOutlineForMoves(row, col);
+    }
+    if (this.boardState.haveReservedPieces(this.boardState.getTurn())) {
+      this.showGhostPiece(row, col);
     }
   }
 
@@ -328,8 +299,8 @@ export class BoardObject {
     this.selectedStackKey = null;
     this.selectedOutlinePass.selectedObjects = [];
     this.targetOutlinePass.selectedObjects = [];
+    this.hideGhostPiece();
   }
-
   public isStackMesh(obj: THREE.Object3D): obj is THREE.Mesh {
     const d = (obj as THREE.Mesh).userData as Partial<StackUserData>;
     return (
@@ -510,6 +481,41 @@ export class BoardObject {
           }
         }
       }
+    }
+  }
+
+  private showGhostPiece(row: number, col: number) {
+    this.hideGhostPiece();
+
+    const spacing = 1;
+    const offset = (6 - 1) / 2;
+
+    const stack = this.boardState.getStack(row, col);
+    const stackLength = stack?.length ?? 0;
+    const color = this.boardState.getTurn() === "red" ? 0xff3b30 : 0x34c759;
+
+    this.ghostMesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.4, 0.4, 0.2, 32),
+      new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.4 })
+    );
+
+    this.ghostMesh.position.set(
+      (col - offset) * spacing,
+      0.15 + stackLength * 0.22,
+      (row - offset) * spacing
+    );
+
+    // prevents the ghost mesh from being detected by raycaster
+    this.ghostMesh.raycast = () => {};
+    this.scene.add(this.ghostMesh);
+  }
+
+  private hideGhostPiece() {
+    if (this.ghostMesh) {
+      this.scene.remove(this.ghostMesh);
+      this.ghostMesh.geometry.dispose();
+      (this.ghostMesh.material as THREE.MeshStandardMaterial).dispose();
+      this.ghostMesh = null;
     }
   }
 }

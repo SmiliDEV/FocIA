@@ -16,7 +16,7 @@ const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
 const camera = new THREE.PerspectiveCamera(
-  75,
+  45,
   window.innerWidth / window.innerHeight,
   0.1,
   100
@@ -52,8 +52,8 @@ intersectedOutlinePass.edgeGlow = 0;
 intersectedOutlinePass.edgeThickness = 1.5;
 intersectedOutlinePass.visibleEdgeColor.set(0xffffff);
 selectedOutlinePass.edgeStrength = 4;
-selectedOutlinePass.edgeGlow = 0;
-selectedOutlinePass.edgeThickness = 1.5;
+selectedOutlinePass.edgeGlow = 1.0;
+selectedOutlinePass.edgeThickness = 2.5;
 selectedOutlinePass.visibleEdgeColor.set(0xffff00);
 targetOutlinePass.edgeStrength = 4;
 targetOutlinePass.edgeGlow = 0;
@@ -68,6 +68,8 @@ resizeRendererToContainer();
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
+controls.minDistance = 7.5;
+controls.maxDistance = 8.5;
 
 const light = new THREE.DirectionalLight(0xffffff, 1.2);
 light.position.set(2, 4, 2);
@@ -144,16 +146,14 @@ canvas.addEventListener("click", (event: MouseEvent) => {
 
 function resizeRendererToContainer() {
   const rect = focusBoard?.getBoundingClientRect();
-  const width = Math.max(1, Math.floor(rect?.width || 0));
-  const height = Math.max(1, Math.floor(rect?.height || 0));
+  const side = Math.max(1, Math.floor(Math.min(rect?.width || 0, rect?.height || 0)));
 
-  camera.aspect = width / height;
+  camera.aspect = 1;
   camera.updateProjectionMatrix();
 
-  renderer.setSize(width, height, false);
-  composer.setSize(width, height);
-
-  intersectedOutlinePass.setSize(width, height);
-  selectedOutlinePass.setSize(width, height);
-  targetOutlinePass.setSize(width, height);
+  renderer.setSize(side, side, false);
+  composer.setSize(side, side);
+  intersectedOutlinePass.setSize(side, side);
+  selectedOutlinePass.setSize(side, side);
+  targetOutlinePass.setSize(side, side);
 }

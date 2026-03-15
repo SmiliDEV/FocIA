@@ -23,15 +23,34 @@
       </header>
 
       <main id="board-layout-main" class="board-layout-main">
-        <section id="board-layout-focusboard" class="board-layout-focusboard">
-          <div id="board" class="board-single"></div>
-        </section>
-      </main>
+        <div class="board-stage">
+          <section id="board-layout-focusboard" class="board-layout-focusboard">
+            <div id="board" class="board-single"></div>
+          </section>
 
-      <aside id="board-layout-sidebar" class="board-layout-sidebar">
-        <h2>Info</h2>
-        <p>Select a stack to preview moves.</p>
-      </aside>
+          <aside id="board-layout-sidebar" class="board-layout-sidebar">
+            <section class="sidebar-panel">
+              <h2>Turn</h2>
+              <p id="turn-info">Red</p>
+            </section>
+
+            <section class="sidebar-panel">
+              <h2>Selection</h2>
+              <p id="selection-info">None</p>
+            </section>
+
+            <section class="sidebar-panel">
+              <h2>Moves</h2>
+              <ul id="moves-list" class="moves-list"></ul>
+            </section>
+
+            <section class="sidebar-panel">
+              <h2>Reserve</h2>
+              <p id="reserve-info">0</p>
+            </section>
+          </aside>
+        </div>
+      </main>
     </div>
 
     <script type="module" src="../built/main.js"></script>
