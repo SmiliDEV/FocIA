@@ -5,14 +5,17 @@ import { handleStartGame, handleUserMovement, handleAIPlay } from './controller/
 const app = express();
 const PORT = 3000;
 
-app.use(cors()); 
-app.use(express.json()); 
+app.use(cors());
+app.use(express.json());
 
+type Player = 'USER' | 'AI';
 
 // 1. Endpoint para iniciar ou reiniciar um jogo
 app.post('/api/start', (req, res) => {
+	req = req.body;
+
     try {
-        const result = handleStartGame();
+        const result = handleStartGame(req);
         return res.json(result);
     } catch (e: any) {
         return res.status(500).json({ error: e.message });

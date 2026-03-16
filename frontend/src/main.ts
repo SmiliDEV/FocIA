@@ -4,7 +4,9 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { OutlinePass } from "three/addons/postprocessing/OutlinePass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
-import { BoardState, BoardObject, type StackUserData } from "../ui/ui.js";
+import { BoardState, BoardObject, Stack, Color, Piece } from "./ui/ui.js";
+
+
 
 const focusBoard = document.getElementById("board");
 if (!focusBoard) throw new Error("Element #board not found");
@@ -78,12 +80,31 @@ scene.add(new THREE.AmbientLight(0xffffff, 0.4));
 
 const board = new BoardState();
 const boardObject = new BoardObject(
-  board,
   scene,
   selectedOutlinePass,
   intersectedOutlinePass,
   targetOutlinePass
 );
+
+const p = (color: Color): Piece => ({ color });
+
+
+const testBoard: Stack[][] = [
+	[null, null, [], [], null, null],
+	[
+		null,
+		[p("green"), p("red")],
+		[p("green"), p("red")],
+		[p("red"), p("green")],
+		[p("red"), p("green")],
+		null,
+	],
+	[[], [p("red")], [p("red")], [p("green")], [p("green")], []],
+	[[], [p("green")], [p("green")], [p("red")], [p("red")], []],
+	[null, [p("red")], [p("red")], [p("green")], [p("green")], null],
+	[null, null, [], [], null, null],
+];
+boardObject.setBoard(testBoard);
 
 function animate() {
   requestAnimationFrame(animate);

@@ -5,9 +5,9 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "sourceMap": true,
-    "rootDir": "frontend/src",
-    "outDir": "built",
+    "rootDir": "src",
+    "outDir": "public",
     "noEmitOnError": true
   },
-  "include": ["frontend/src/**/*", "frontend/ui"]
+  "include": ["src/**/*", "ui"]
 }
