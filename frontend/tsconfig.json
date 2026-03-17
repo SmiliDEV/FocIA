@@ -9,5 +9,5 @@
     "outDir": "public",
     "noEmitOnError": true
   },
-  "include": ["src/**/*", "ui"]
+  "include": ["src/**/*", "ui"],
 }

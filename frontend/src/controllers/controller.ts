@@ -1,5 +1,5 @@
 import { startGame, userPlay, aiPlay } from '../api/client';
-import { BoardObject } from '../ui/ui';
+import { BoardObject } from '../ui/board.js';
 
 export class GameController {
     private boardObject: BoardObject;
@@ -11,7 +11,7 @@ export class GameController {
     async init() {
         const response = await startGame();
         if (response && response.state) {
-           // setBoardObject here 
+           // setBoardObject here
         }
     }
 
@@ -24,7 +24,7 @@ export class GameController {
         }
         const event = response.event;
         this.boardObject.animateMove(event.sourcePos, event.destPos, event.finalDestStack);
-        
+
         await this.processAITurn();
     }
 
@@ -38,7 +38,7 @@ export class GameController {
 
         const event = response.event;
         this.boardObject.animateReservePlace(event.player, event.destPos, event.finalDestStack);
-        
+
         await this.processAITurn();
     }
 
