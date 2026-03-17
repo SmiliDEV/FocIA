@@ -1,6 +1,5 @@
-import { startGame, userPlay, aiPlay } from '../api/client';
+import { startGame, userPlay, aiPlay } from '../api/client.js';
 import { BoardObject } from '../ui/board.js';
-
 export class GameController {
     private boardObject: BoardObject;
 
@@ -11,7 +10,12 @@ export class GameController {
     async init() {
         const response = await startGame();
         if (response && response.state) {
-           // setBoardObject here
+					// tamanho do tabuleiro
+					// tamanho das pilhas
+					// estado tabuleiro inicial
+					// máximo de jogadas
+					// primeiro jogador
+          // setBoardObject here
         }
     }
 
@@ -23,6 +27,7 @@ export class GameController {
             return;
         }
         const event = response.event;
+
         this.boardObject.animateMove(event.sourcePos, event.destPos, event.finalDestStack);
 
         await this.processAITurn();

@@ -53,9 +53,18 @@ export type BoardPieceUserData = {
   col: number;
 };
 
-export type Move = {
+export type PossibleMoves = {
   toRow: number;
   toCol: number;
+};
+
+export type Move = {
+  sourcePos: StackCoords;
+  destPos: StackCoords;
+};
+
+export type Reserve = {
+  destPos: StackCoords;
 };
 
 type AttackAnimation = {
@@ -126,7 +135,8 @@ export class BoardObject {
   private attackAnimation: AttackAnimation | null = null;
   private reserveAnimation: ReserveAnimation | null = null;
 
-  // destiny position
+  // destiny position used by animation to know where the stack is going to,
+  // so it can correctly merge stacks at the end of the animation
   private destPos: StackCoords | null = null;
 
   constructor(
@@ -174,66 +184,57 @@ export class BoardObject {
     this.intersectedOutlinePass.selectedObjects = [];
   }
 
+  public isReservePlay(obj: THREE.Object3D): Reserve | null {
+		// if there is an animation ongoing, ignore any selection
+    if (this.attackAnimation || this.reserveAnimation) return null;
+
+    const stackUserData: StackUserData = obj.userData as StackUserData;
+    const stackCoords: StackCoords = stackUserData;
+
+    if (this.selectedStackCoords === stackCoords && this.isStackMesh(obj)) {
+      if (this.players[this.turn].reservedPieces > 0) {
+        this.unselectStack();
+
+				return { destPos: stackCoords };
+      } else {
+        this.unselectStack();
+      }
+    }
+
+		return null;
+  }
+
+  public isMovePlaying(obj: THREE.Object3D): Move | null {
+		// if there is an animation ongoing, ignore any selection
+    if (this.attackAnimation || this.reserveAnimation) return null;
+
+    if (this.targetOutlinePass.selectedObjects.length > 0) {
+      if (this.targetOutlinePass.selectedObjects.includes(obj)) {
+        if (!this.selectedStackCoords) return null;
+
+        const stackUserData: StackUserData = obj.userData as StackUserData;
+        const stackCoords: StackCoords = stackUserData;
+
+        const sourcePos = this.selectedStackCoords;
+        const destPos = stackCoords;
+
+        this.unselectStack();
+
+        return { sourcePos, destPos };
+      } else {
+        this.unselectStack();
+      }
+    }
+
+    return null;
+  }
+
   public selectStack(obj: THREE.Object3D) {
     // if there is an animation ongoing, ignore any selection
     if (this.attackAnimation || this.reserveAnimation) return;
 
     const stackUserData: StackUserData = obj.userData as StackUserData;
     const stackCoords: StackCoords = stackUserData;
-
-    // if the same stack is selected, unselect it or play reserve if possible
-    if (this.selectedStackCoords === stackCoords && this.isStackMesh(obj)) {
-      // if (this.boardState.haveReservedPieces(this.boardState.getTurn())) {
-      if (this.players[this.turn].reservedPieces > 0) {
-        // TODO: Replace this function with the controller function that plays the reserve piece and updates the board state
-        // const played = applyAction(action: Action);
-        // if (played) {
-        //   this.unselectStack();
-        //   this.updateMeshes();
-        // }
-        this.startReserveAnimation(stackCoords.row, stackCoords.col, this.turn);
-        this.unselectStack();
-      } else {
-        this.unselectStack();
-      }
-      return;
-    }
-
-    // if there are target objects, only allow selecting from those
-    if (this.targetOutlinePass.selectedObjects.length > 0) {
-      if (this.targetOutlinePass.selectedObjects.includes(obj)) {
-        if (!this.selectedStackCoords) return;
-
-        // TODO: Replace this function with the controller function that plays the move action and updates the board state
-        // const played = this.boardState.playMove(
-        //   Number(this.selectedStackCoords?.split(":")[0]),
-        //   Number(this.selectedStackCoords?.split(":")[1]),
-        //   row,
-        //   col,
-        // );
-
-        // if (played) {
-        //   this.unselectStack();
-        //   this.updateMeshes();
-        // }
-
-        //if (!played) { return; }
-
-        const sourcePos = this.selectedStackCoords;
-        const destPos = stackCoords;
-
-        // remove the source stack
-        this.removeStackMesh(sourcePos.row, sourcePos.col);
-        this.startAttackAnimation(sourcePos, destPos);
-        this.destPos = destPos;
-        this.unselectStack();
-
-        return;
-      } else {
-        this.unselectStack();
-        return;
-      }
-    }
 
     // if the object is not a stack mesh, unselect any selected stack and return
     if (!this.isStackMesh(obj)) {
@@ -260,6 +261,31 @@ export class BoardObject {
     this.selectedOutlinePass.selectedObjects = [];
     this.targetOutlinePass.selectedObjects = [];
     this.hideGhostPiece();
+  }
+
+  public animateMove(
+    sourcePos: StackCoords,
+    destPos: StackCoords,
+    finalDestStack: Stack,
+  ) {
+    // if there is an animation ongoing, ignore any new move
+    if (this.attackAnimation || this.reserveAnimation) return;
+
+    // remove the source stack
+    this.removeStackMesh(sourcePos.row, sourcePos.col);
+    this.startAttackAnimation(sourcePos, destPos);
+    this.destPos = destPos; // animation needs to know the destination position to correctly merge stacks at the end of the animation
+  }
+
+  public animateReservePlace(
+    player: Color,
+    destPos: StackCoords,
+    finalDestStack: Stack,
+  ) {
+    // if there is an animation ongoing, ignore any new move
+    if (this.attackAnimation || this.reserveAnimation) return;
+
+    this.startReserveAnimation(destPos.row, destPos.col, player);
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -449,14 +475,14 @@ export class BoardObject {
     );
   }
 
-  private possibleMoves(row: number, col: number): Move[] {
+  private possibleMoves(row: number, col: number): PossibleMoves[] {
     const stackMesh = this.getStack(row, col);
     if (!stackMesh) return [];
 
     const stackLength = Number(stackMesh.userData.level ?? 0);
     if (stackLength <= 0) return [];
 
-    const moves: Move[] = [];
+    const moves: PossibleMoves[] = [];
     const directions = [
       { dr: -1, dc: 0 },
       { dr: 1, dc: 0 },

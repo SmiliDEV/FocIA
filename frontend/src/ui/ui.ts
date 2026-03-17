@@ -5,6 +5,8 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { OutlinePass } from "three/addons/postprocessing/OutlinePass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { BoardObject, Stack, Color, Piece } from "./board.js";
+import { GameController } from "../controllers/controller.js";
+import { xor } from "three/tsl";
 
 const focusBoard = document.getElementById("board");
 
@@ -50,6 +52,9 @@ const targetOutlinePass = new OutlinePass(
 
 // board object
 let boardObject: BoardObject;
+
+// controller
+let controller: GameController;
 
 // temp
 const p = (color: Color): Piece => ({ color });
@@ -114,24 +119,27 @@ export function loadUI() {
   controls.minDistance = 7.5;
   controls.maxDistance = 8.5;
 
-	// light config
+  // light config
   light.position.set(2, 4, 2);
   scene.add(light);
   scene.add(new THREE.AmbientLight(0xffffff, 0.4));
 
-	// board object
+  // board object
   boardObject = new BoardObject(
     scene,
     selectedOutlinePass,
     intersectedOutlinePass,
     targetOutlinePass,
   );
-	boardObject.setBoardMesh(testBoard);
+  boardObject.setBoardMesh(testBoard);
 
-	// animations
-	animate();
+	// controller config
+	controller = new GameController(boardObject);
+	controller.init();
+
+  // animations
+  animate();
 }
-
 
 function animate() {
   requestAnimationFrame(animate);
@@ -211,6 +219,22 @@ canvas.addEventListener("pointerup", (event: PointerEvent) => {
   const intersects = raycaster.intersectObjects(scene.children, true);
 
   if (intersects.length > 0) {
+    const isReservePlay = boardObject.isReservePlay(intersects[0].object);
+    if (isReservePlay) {
+			//console.log("reserve play detected at", isReservePlay.destPos);
+			const dest = { x: isReservePlay.destPos.row, y: isReservePlay.destPos.col };
+			controller.processReserve(dest);
+      return;
+    }
+    const isMovePlay = boardObject.isMovePlaying(intersects[0].object);
+    if (isMovePlay) {
+			//console.log("move play detected from", isMovePlay.sourcePos, "to", isMovePlay.destPos);
+      const src = { x: isMovePlay.sourcePos.row, y: isMovePlay.sourcePos.col };
+			const dest = { x: isMovePlay.destPos.row, y: isMovePlay.destPos.col };
+			controller.processMove(src, dest, 1);
+      return;
+    }
+
     boardObject.selectStack(intersects[0].object);
   } else {
     boardObject.unselectStack();

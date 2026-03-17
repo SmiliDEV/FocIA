@@ -1,4 +1,5 @@
 const SERVER_URL = 'http://localhost:3000';
+
 export async function startGame() {
     const response = await fetch(`${SERVER_URL}/api/start`, { method: 'POST' });
     return response.json();
