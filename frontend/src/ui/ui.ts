@@ -5,9 +5,18 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { OutlinePass } from "three/addons/postprocessing/OutlinePass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Configs
+
 export const MAX_JOGADAS = 250;
 export const MAX_ALTURA_PILHA = 3;
 export const TAMANHO_TABULEIRO = 6;
+
+const SPACING = 1;
+const OFFSET = (6 - 1) / 2;
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Types
 
 export type Color = "red" | "green";
 
@@ -21,15 +30,15 @@ export interface MeshPiece {
   mesh: THREE.Mesh;
 }
 
-export type StackMesh = THREE.Mesh | null;
-
-export type BoardPieceMesh = THREE.Mesh | null;
-
 export interface Piece {
   color: Color;
 }
 
 export type Stack = Piece[] | null;
+
+export type StackMesh = THREE.Mesh | null;
+
+export type BoardPieceMesh = THREE.Mesh | null;
 
 export type StackUserData = {
   kind: "stack";
@@ -49,154 +58,34 @@ export type Move = {
   toCol: number;
 };
 
-const p = (color: Color): Piece => ({ color });
+type AttackAnimation = {
+  mesh: THREE.Mesh;
+  from: THREE.Vector3;
+  to: THREE.Vector3;
+  fromCoords: StackCoords;
+  toCoords: StackCoords;
+  elapsed: number;
+  duration: number;
+  arcHeight: number;
+};
 
-const initialBoard: Stack[][] = [
-  [null, null, [], [], null, null],
-  [null, [p("green")], [p("green")], [p("red")], [p("red")], null],
-  [[], [p("red")], [p("red")], [p("green")], [p("green")], []],
-  [[], [p("green")], [p("green")], [p("red")], [p("red")], []],
-  [null, [p("red")], [p("red")], [p("green")], [p("green")], null],
-  [null, null, [], [], null, null],
-];
+type ReserveAnimation = {
+  mesh: THREE.Mesh;
+  from: THREE.Vector3;
+  to: THREE.Vector3;
+  targetCoords: StackCoords;
+  color: Color;
+  elapsed: number;
+  duration: number;
+};
 
-const testBoard: Stack[][] = [
-  [null, null, [], [], null, null],
-  [
-    null,
-    [p("green"), p("red")],
-    [p("green"), p("red")],
-    [p("red"), p("green")],
-    [p("red"), p("green")],
-    null,
-  ],
-  [[], [p("red")], [p("red")], [p("green")], [p("green")], []],
-  [[], [p("green")], [p("green")], [p("red")], [p("red")], []],
-  [null, [p("red")], [p("red")], [p("green")], [p("green")], null],
-  [null, null, [], [], null, null],
-];
+type StackCoords = {
+  row: number;
+  col: number;
+};
 
-export class BoardState {
-  private turn: Color = "red";
-  private players: Record<Color, Player> = {
-    red: { color: "red", capturedPieces: 0, reservedPieces: 2 },
-    green: { color: "green", capturedPieces: 0, reservedPieces: 2 },
-  };
-  private _board: Stack[][];
-
-  constructor() {
-    this._board = testBoard.map((r) => [...r]);
-  }
-
-  get board(): ReadonlyArray<ReadonlyArray<Stack>> {
-    return this._board;
-  }
-
-  getTurn(): Color {
-    return this.turn;
-  }
-
-  getStack(row: number, col: number): Stack {
-    return this.board[row]?.[col] ?? null;
-  }
-
-  move(
-    fromRow: number,
-    fromCol: number,
-    toRow: number,
-    toCol: number,
-  ): boolean {
-    const stack = this.getStack(fromRow, fromCol);
-    return true;
-  }
-
-  possibleMoves(row: number, col: number): Move[] {
-    if (!this.getStack(row, col) || this.getStack(row, col)?.length === 0)
-      return [];
-
-    const moves: Move[] = [];
-    const directions = [
-      { dr: -1, dc: 0 },
-      { dr: 1, dc: 0 },
-      { dr: 0, dc: -1 },
-      { dr: 0, dc: 1 },
-    ];
-
-    const pieceCount = this.getStack(row, col)?.length || 0;
-    for (const { dr, dc } of directions) {
-      const newRow = row + dr * pieceCount;
-      const newCol = col + dc * pieceCount;
-
-      if (
-        newRow < 0 ||
-        newRow >= this.board.length ||
-        newCol < 0 ||
-        newCol >= this.board[0].length ||
-        this.getStack(newRow, newCol) === null
-      )
-        continue;
-
-      moves.push({ toRow: newRow, toCol: newCol });
-    }
-
-    return moves;
-  }
-
-  playMove(
-    fromRow: number,
-    fromCol: number,
-    toRow: number,
-    toCol: number,
-  ): boolean {
-    const stack = this.getStack(fromRow, fromCol);
-    if (!stack || stack.length === 0) return false;
-
-    const possible = this.possibleMoves(fromRow, fromCol);
-    if (!possible.some((m) => m.toRow === toRow && m.toCol === toCol))
-      return false;
-
-    this._board[toRow][toCol] = [
-      ...(this.getStack(toRow, toCol) ?? []),
-      ...stack,
-    ];
-    this._board[fromRow][fromCol] = [];
-    this.turn = this.turn === "red" ? "green" : "red";
-    return true;
-  }
-
-  playReserve(toRow: number, toCol: number): boolean {
-    if (!this.haveReservedPieces(this.turn)) return false;
-    if (this.getStack(toRow, toCol) === null) return false;
-
-    this._board[toRow][toCol] = [
-      ...(this.getStack(toRow, toCol) ?? []),
-      { color: this.turn },
-    ];
-    this.players[this.turn].reservedPieces--;
-    this.turn = this.turn === "red" ? "green" : "red";
-    return true;
-  }
-
-  isStackMovable(row: number, col: number): boolean {
-    const stack = this.getStack(row, col);
-    if (stack?.length === 0 || stack === null) return false;
-    if (stack[stack.length - 1].color !== this.turn) return false;
-    //if (this.possibleMoves(row, col).length === 0) return false;
-
-    return true;
-  }
-
-  haveReservedPieces(color: Color): boolean {
-    return this.players[color].reservedPieces > 0;
-  }
-
-  snapshot(): Stack[][] {
-    return this.board.map((r) => [...r]);
-  }
-}
-
-const SPACING = 1;
-const OFFSET = (6 - 1) / 2;
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// UI
 
 const turnInfoElement = document.getElementById("turn-info");
 if (!turnInfoElement) throw new Error("Element #turn-info not found");
@@ -209,20 +98,36 @@ const reserveInfoGreenElement = document.getElementById("reserve-info-green");
 if (!reserveInfoGreenElement)
   throw new Error("Element #reserve-info-green not found");
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// BoardObject
+
 export class BoardObject {
   private scene: THREE.Scene;
   private stacksMeshes: StackMesh[][];
   private boardMesh: BoardPieceMesh[][];
-  private selectedStackKey: string | null = null;
-  private selectedOutlinePass: OutlinePass;
+	private ghostMesh: THREE.Mesh | null = null;
+
+	// selection
+  private selectedStackCoords: StackCoords | null = null;
+
+	// outline passes
+	private selectedOutlinePass: OutlinePass;
   private intersectedOutlinePass: OutlinePass;
   private targetOutlinePass: OutlinePass;
-  private ghostMesh: THREE.Mesh | null = null;
+
+	// game state
   private turn: Color = "red";
   private players: Record<Color, Player> = {
     red: { color: "red", capturedPieces: 0, reservedPieces: 2 },
     green: { color: "green", capturedPieces: 0, reservedPieces: 2 },
   };
+
+  // animation
+  private attackAnimation: AttackAnimation | null = null;
+  private reserveAnimation: ReserveAnimation | null = null;
+
+  // destiny position
+  private destPos: StackCoords | null = null;
 
   constructor(
     scene: THREE.Scene,
@@ -238,6 +143,11 @@ export class BoardObject {
     this.boardMesh = [];
   }
 
+  public update(deltaSec: number) {
+    this.updateAttackAnimation(deltaSec);
+    this.updateReserveAnimation(deltaSec);
+  }
+
   public setBoard(stacks: ReadonlyArray<ReadonlyArray<Stack>>) {
     if (turnInfoElement)
       turnInfoElement.textContent = `Turn: ${this.turn.toUpperCase()}`;
@@ -246,18 +156,9 @@ export class BoardObject {
     if (reserveInfoGreenElement)
       reserveInfoGreenElement.textContent = `Green: ${this.players.green.reservedPieces}`;
 
-    this.stacksMeshes = this.createStacksMeshes(stacks, SPACING, OFFSET);
-    this.boardMesh = this.createBoardMeshes(stacks, SPACING, OFFSET);
+    this.stacksMeshes = this.createStacksMeshes(stacks);
+    this.boardMesh = this.createBoardMeshes(stacks);
     this.setupScene(this.scene);
-  }
-
-  private setupScene(scene: THREE.Scene) {
-    scene.add(
-      ...this.stacksMeshes.flat().filter((m): m is THREE.Mesh => m !== null),
-    );
-    scene.add(
-      ...this.boardMesh.flat().filter((m): m is THREE.Mesh => m !== null),
-    );
   }
 
   public intersectStack(obj: THREE.Object3D) {
@@ -274,11 +175,14 @@ export class BoardObject {
   }
 
   public selectStack(obj: THREE.Object3D) {
-    const { row, col } = obj.userData;
-    const key = row + ":" + col;
+    // if there is an animation ongoing, ignore any selection
+    if (this.attackAnimation || this.reserveAnimation) return;
+
+    const stackUserData: StackUserData = obj.userData as StackUserData;
+    const stackCoords: StackCoords = stackUserData;
 
     // if the same stack is selected, unselect it or play reserve if possible
-    if (this.selectedStackKey === key && this.isStackMesh(obj)) {
+    if (this.selectedStackCoords === stackCoords && this.isStackMesh(obj)) {
       // if (this.boardState.haveReservedPieces(this.boardState.getTurn())) {
       if (this.players[this.turn].reservedPieces > 0) {
         // TODO: Replace this function with the controller function that plays the reserve piece and updates the board state
@@ -287,6 +191,8 @@ export class BoardObject {
         //   this.unselectStack();
         //   this.updateMeshes();
         // }
+        this.startReserveAnimation(stackCoords.row, stackCoords.col, this.turn);
+        this.unselectStack();
       } else {
         this.unselectStack();
       }
@@ -296,12 +202,12 @@ export class BoardObject {
     // if there are target objects, only allow selecting from those
     if (this.targetOutlinePass.selectedObjects.length > 0) {
       if (this.targetOutlinePass.selectedObjects.includes(obj)) {
-        if (!this.selectedStackKey) return;
+        if (!this.selectedStackCoords) return;
 
         // TODO: Replace this function with the controller function that plays the move action and updates the board state
         // const played = this.boardState.playMove(
-        //   Number(this.selectedStackKey?.split(":")[0]),
-        //   Number(this.selectedStackKey?.split(":")[1]),
+        //   Number(this.selectedStackCoords?.split(":")[0]),
+        //   Number(this.selectedStackCoords?.split(":")[1]),
         //   row,
         //   col,
         // );
@@ -310,34 +216,155 @@ export class BoardObject {
         //   this.unselectStack();
         //   this.updateMeshes();
         // }
+
+        //if (!played) { return; }
+
+        const sourcePos = this.selectedStackCoords;
+        const destPos = stackCoords;
+
+        // remove the source stack
+        this.removeStackMesh(sourcePos.row, sourcePos.col);
+        this.startAttackAnimation(sourcePos, destPos);
+        this.destPos = destPos;
+        this.unselectStack();
+
+        return;
       } else {
         this.unselectStack();
         return;
       }
     }
 
+    // if the object is not a stack mesh, unselect any selected stack and return
     if (!this.isStackMesh(obj)) {
       this.unselectStack();
       return;
     }
 
-    this.selectedStackKey = key;
+    this.selectedStackCoords = stackCoords;
     this.selectedOutlinePass.selectedObjects = [obj];
 
-    if (this.isStackMovable(row, col)) {
-      this.updateTargetOutlineForMoves(row, col);
+    // if the stack is movable, show the possible moves in the target outline pass
+    if (this.isStackMovable(stackCoords.row, stackCoords.col)) {
+      this.updateTargetOutlineForMoves(stackCoords.row, stackCoords.col);
     }
 
+    // if the current player has reserved pieces, show the ghost piece in the stack
     if (this.players[this.turn].reservedPieces > 0) {
-      this.showGhostPiece(row, col);
+      this.showGhostPiece(stackCoords.row, stackCoords.col);
     }
   }
 
   public unselectStack() {
-    this.selectedStackKey = null;
+    this.selectedStackCoords = null;
     this.selectedOutlinePass.selectedObjects = [];
     this.targetOutlinePass.selectedObjects = [];
     this.hideGhostPiece();
+  }
+
+  ///////////////////////////////////////////////////////////////////////////////////////////////////
+  // Stack
+
+  private mergeAndTrimStacks(fromCoords: StackCoords, toCoords: StackCoords) {
+    const sourceStack = this.getStack(fromCoords.row, fromCoords.col);
+    const destinationStack = this.getStack(toCoords.row, toCoords.col);
+
+    const merged = [
+      ...this.stackMeshToPieces(destinationStack),
+      ...this.stackMeshToPieces(sourceStack),
+    ];
+    const overflow = Math.max(0, merged.length - MAX_ALTURA_PILHA);
+    const trimmed = merged.slice(overflow);
+
+    this.removeStackMesh(toCoords.row, toCoords.col);
+
+    const rebuilt = this.createStackMesh(trimmed, toCoords.row, toCoords.col);
+    this.stacksMeshes[toCoords.row][toCoords.col] = rebuilt;
+    if (rebuilt) {
+      this.scene.add(rebuilt);
+    }
+  }
+
+  private applyReservePieceAndTrim(row: number, col: number, color: Color) {
+    const destinationStack = this.getStack(row, col);
+    const merged = [...this.stackMeshToPieces(destinationStack), { color }];
+    const overflow = Math.max(0, merged.length - MAX_ALTURA_PILHA);
+    const trimmed = merged.slice(overflow);
+
+    this.removeStackMesh(row, col);
+
+    const rebuilt = this.createStackMesh(trimmed, row, col);
+    this.stacksMeshes[row][col] = rebuilt;
+    if (rebuilt) {
+      this.scene.add(rebuilt);
+    }
+  }
+
+  private stackMeshToPieces(mesh: StackMesh): Piece[] {
+    if (!mesh) return [];
+    const stackMats = Array.isArray(mesh.material)
+      ? mesh.material
+      : [mesh.material];
+
+    return stackMats
+      .map((material) => {
+        const mat = material as THREE.MeshStandardMaterial;
+        const colorHex = mat.color?.getHex();
+        if (colorHex === 0xff3b30) return { color: "red" as const };
+        if (colorHex === 0x34c759) return { color: "green" as const };
+        return null;
+      })
+      .filter((piece): piece is Piece => piece !== null);
+  }
+
+  private createStackMesh(stack: Piece[], row: number, col: number): StackMesh {
+    if (stack === null || stack.length === 0) return null;
+
+    const geometries = stack.map((stack, stackIndex) => {
+      const g = new THREE.CylinderGeometry(0.4, 0.4, 0.2, 32);
+      g.translate(
+        (col - OFFSET) * SPACING,
+        0.15 + stackIndex * 0.22,
+        (row - OFFSET) * SPACING,
+      );
+      return g;
+    });
+
+    const merged = mergeGeometries(geometries, true);
+    geometries.forEach((g) => g.dispose());
+    if (!merged) return null;
+
+    const materials = stack.map(
+      (piece) =>
+        new THREE.MeshStandardMaterial({
+          color: piece.color === "red" ? 0xff3b30 : 0x34c759,
+        }),
+    );
+
+    const mesh = new THREE.Mesh(merged, materials);
+
+    mesh.userData = {
+      ...mesh.userData,
+      kind: "stack",
+      row: row,
+      col: col,
+      level: stack.length,
+    };
+
+    return mesh;
+  }
+
+  private removeStackMesh(row: number, col: number) {
+    const sourceStackMesh = this.getStack(row, col);
+
+    if (sourceStackMesh) {
+      this.scene.remove(sourceStackMesh);
+      sourceStackMesh.geometry.dispose();
+      const mats = Array.isArray(sourceStackMesh.material)
+        ? sourceStackMesh.material
+        : [sourceStackMesh.material];
+      mats.forEach((m) => m.dispose());
+    }
   }
 
   public isStackMesh(obj: THREE.Object3D): obj is THREE.Mesh {
@@ -351,6 +378,23 @@ export class BoardObject {
     );
   }
 
+  public getStack(row: number, col: number): StackMesh {
+    return this.stacksMeshes[row]?.[col] ?? null;
+  }
+
+  private createStacksMeshes(
+    stacks: ReadonlyArray<ReadonlyArray<Stack>>,
+  ): StackMesh[][] {
+    return stacks.map((row, rowIndex) =>
+      row.map((cell, colIndex): StackMesh => {
+        return this.createStackMesh(cell ?? [], rowIndex, colIndex);
+      }),
+    );
+  }
+
+  ///////////////////////////////////////////////////////////////////////////////////////////////////
+  // Board
+
   public isBoardMesh(obj: THREE.Object3D): obj is THREE.Mesh {
     const d = (obj as THREE.Mesh).userData as Partial<BoardPieceUserData>;
     return (
@@ -361,79 +405,8 @@ export class BoardObject {
     );
   }
 
-  public getStack(row: number, col: number): StackMesh {
-    return this.stacksMeshes[row]?.[col] ?? null;
-  }
-
-  private updateTargetOutlineForMoves(row: number, col: number) {
-    const moves = this.possibleMoves(row, col);
-    const targets: THREE.Object3D[] = [];
-
-    for (const move of moves) {
-      const stackMesh = this.stacksMeshes[move.toRow]?.[move.toCol] ?? null;
-      if (stackMesh) {
-        targets.push(stackMesh);
-        continue;
-      }
-
-      const boardCellMesh = this.boardMesh[move.toRow]?.[move.toCol] ?? null;
-      if (boardCellMesh) {
-        targets.push(boardCellMesh);
-      }
-    }
-
-    this.targetOutlinePass.selectedObjects = targets;
-  }
-
-  private createStacksMeshes(
-    stack: ReadonlyArray<ReadonlyArray<Stack>>,
-    spacing: number,
-    offset: number,
-  ): StackMesh[][] {
-    return stack.map((row, rowIndex) =>
-      row.map((cell, colIndex): StackMesh => {
-        if (cell === null || cell.length === 0) return null;
-
-        const geometries = cell.map((stack, stackIndex) => {
-          const g = new THREE.CylinderGeometry(0.4, 0.4, 0.2, 32);
-          g.translate(
-            (colIndex - offset) * spacing,
-            0.15 + stackIndex * 0.22,
-            (rowIndex - offset) * spacing,
-          );
-          return g;
-        });
-
-        const merged = mergeGeometries(geometries, true);
-        geometries.forEach((g) => g.dispose());
-        if (!merged) return null;
-
-        const materials = cell.map(
-          (piece) =>
-            new THREE.MeshStandardMaterial({
-              color: piece.color === "red" ? 0xff3b30 : 0x34c759,
-            }),
-        );
-
-        const mesh = new THREE.Mesh(merged, materials);
-
-        mesh.userData = {
-          ...mesh.userData,
-          kind: "stack",
-          row: rowIndex,
-          col: colIndex,
-          level: cell.length,
-        };
-
-        return mesh;
-      }),
-    );
-  }
-
   private createBoardMeshes(
     stack: ReadonlyArray<ReadonlyArray<Stack>>,
-    spacing: number,
-    offset: number,
   ): BoardPieceMesh[][] {
     return stack.map((row, rowIndex) =>
       row.map((cell, colIndex): BoardPieceMesh => {
@@ -448,9 +421,9 @@ export class BoardObject {
         );
 
         mesh.position.set(
-          (colIndex - offset) * spacing,
+          (colIndex - OFFSET) * SPACING,
           0,
-          (rowIndex - offset) * spacing,
+          (rowIndex - OFFSET) * SPACING,
         );
 
         mesh.userData = {
@@ -461,6 +434,18 @@ export class BoardObject {
         };
         return mesh;
       }),
+    );
+  }
+
+  ///////////////////////////////////////////////////////////////////////////////////////////////////
+  // Util
+
+  private setupScene(scene: THREE.Scene) {
+    scene.add(
+      ...this.stacksMeshes.flat().filter((m): m is THREE.Mesh => m !== null),
+    );
+    scene.add(
+      ...this.boardMesh.flat().filter((m): m is THREE.Mesh => m !== null),
     );
   }
 
@@ -496,6 +481,49 @@ export class BoardObject {
     }
 
     return moves;
+  }
+
+  private updateTargetOutlineForMoves(row: number, col: number) {
+    const moves = this.possibleMoves(row, col);
+    const targets: THREE.Object3D[] = [];
+
+    for (const move of moves) {
+      const stackMesh = this.stacksMeshes[move.toRow]?.[move.toCol] ?? null;
+      if (stackMesh) {
+        targets.push(stackMesh);
+        continue;
+      }
+
+      const boardCellMesh = this.boardMesh[move.toRow]?.[move.toCol] ?? null;
+      if (boardCellMesh) {
+        targets.push(boardCellMesh);
+      }
+    }
+
+    this.targetOutlinePass.selectedObjects = targets;
+  }
+
+  private isStackMovable(row: number, col: number): boolean {
+    const stackMesh = this.getStack(row, col);
+    if (!stackMesh) return false;
+
+    const level = Number(stackMesh.userData.level ?? 0);
+    if (level <= 0) return false;
+
+    const mats = Array.isArray(stackMesh.material)
+      ? stackMesh.material
+      : [stackMesh.material];
+
+    const topMat = mats[level - 1] as THREE.MeshStandardMaterial | undefined;
+    const topColor = topMat?.color;
+    const topHex = topColor?.getHex();
+
+    const topName =
+      topHex === 0xff3b30 ? "red" : topHex === 0x34c759 ? "green" : "unknown";
+
+    if (topName !== this.turn) return false;
+
+    return true;
   }
 
   private showGhostPiece(row: number, col: number) {
@@ -536,26 +564,150 @@ export class BoardObject {
     }
   }
 
-  private isStackMovable(row: number, col: number): boolean {
-    const stackMesh = this.getStack(row, col);
-    if (!stackMesh) return false;
+  ///////////////////////////////////////////////////////////////////////////////////////////////////
+  // Animation
 
-    const level = Number(stackMesh.userData.level ?? 0);
-    if (level <= 0) return false;
+  private updateAttackAnimation(deltaSec: number) {
+    if (!this.attackAnimation) return;
 
-    const mats = Array.isArray(stackMesh.material)
-      ? stackMesh.material
-      : [stackMesh.material];
+    const a = this.attackAnimation;
+    a.elapsed = Math.min(a.elapsed + deltaSec, a.duration);
+    const t = a.elapsed / a.duration;
 
-    const topMat = mats[level - 1] as THREE.MeshStandardMaterial | undefined;
-    const topColor = topMat?.color;
-    const topHex = topColor?.getHex();
+    const eased = t * t * (3 - 2 * t);
 
-    const topName =
-      topHex === 0xff3b30 ? "red" : topHex === 0x34c759 ? "green" : "unknown";
+    a.mesh.position.lerpVectors(a.from, a.to, eased);
+    a.mesh.position.y += Math.sin(Math.PI * eased) * a.arcHeight;
 
-    if (topName !== this.turn) return false;
+    if (t >= 1) {
+      this.scene.remove(a.mesh);
+      a.mesh.geometry.dispose();
+      const mats = Array.isArray(a.mesh.material)
+        ? a.mesh.material
+        : [a.mesh.material];
+      mats.forEach((m) => m.dispose());
 
-    return true;
+      this.mergeAndTrimStacks(a.fromCoords, a.toCoords);
+      this.stacksMeshes[a.fromCoords.row][a.fromCoords.col] = null;
+
+      this.destPos = null;
+      this.attackAnimation = null;
+    }
+  }
+
+  private updateReserveAnimation(deltaSec: number) {
+    if (!this.reserveAnimation) return;
+
+    const a = this.reserveAnimation;
+    a.elapsed = Math.min(a.elapsed + deltaSec, a.duration);
+    const t = a.elapsed / a.duration;
+
+    const eased = 1 - (1 - t) * (1 - t) * (1 - t);
+    a.mesh.position.lerpVectors(a.from, a.to, eased);
+
+    if (t >= 1) {
+      this.scene.remove(a.mesh);
+      a.mesh.geometry.dispose();
+      (a.mesh.material as THREE.MeshStandardMaterial).dispose();
+
+      this.applyReservePieceAndTrim(
+        a.targetCoords.row,
+        a.targetCoords.col,
+        a.color,
+      );
+
+      if (this.players[a.color].reservedPieces > 0) {
+        this.players[a.color].reservedPieces -= 1;
+      }
+
+      if (reserveInfoRedElement)
+        reserveInfoRedElement.textContent = `Red: ${this.players.red.reservedPieces}`;
+      if (reserveInfoGreenElement)
+        reserveInfoGreenElement.textContent = `Green: ${this.players.green.reservedPieces}`;
+
+      this.reserveAnimation = null;
+    }
+  }
+
+  private startReserveAnimation(row: number, col: number, color: Color) {
+    if (this.attackAnimation || this.reserveAnimation) return;
+
+    const targetStack = this.getStack(row, col);
+    const targetLevel = Number(targetStack?.userData.level ?? 0);
+    const colorHex = color === "red" ? 0xff3b30 : 0x34c759;
+
+    const animated = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.4, 0.4, 0.2, 32),
+      new THREE.MeshStandardMaterial({ color: colorHex }),
+    );
+
+    const x = (col - OFFSET) * SPACING;
+    const z = (row - OFFSET) * SPACING;
+    const from = new THREE.Vector3(x, 1.6, z);
+    const to = new THREE.Vector3(x, 0.15 + targetLevel * 0.22, z);
+
+    animated.position.copy(from);
+    animated.raycast = () => {};
+    this.scene.add(animated);
+
+    this.reserveAnimation = {
+      mesh: animated,
+      from,
+      to,
+      targetCoords: { row, col },
+      color,
+      elapsed: 0,
+      duration: 0.3,
+    };
+  }
+
+  private startAttackAnimation(sourcePos: StackCoords, destPos: StackCoords) {
+    if (this.attackAnimation) return;
+
+    const fromRow = sourcePos.row;
+    const fromCol = sourcePos.col;
+    const toRow = destPos.row;
+    const toCol = destPos.col;
+
+    if (
+      Number.isNaN(fromRow) ||
+      Number.isNaN(fromCol) ||
+      Number.isNaN(toRow) ||
+      Number.isNaN(toCol)
+    ) {
+      return;
+    }
+
+    const sourceStack = this.getStack(fromRow, fromCol);
+    if (!sourceStack) return;
+
+    // clone mesh so current board state can remain unchanged for now
+    const animated = sourceStack.clone() as THREE.Mesh;
+    animated.geometry = sourceStack.geometry.clone();
+
+    const srcMats = Array.isArray(sourceStack.material)
+      ? sourceStack.material
+      : [sourceStack.material];
+    animated.material = srcMats.map((m) => (m as THREE.Material).clone());
+
+    animated.position.copy(sourceStack.position);
+    animated.raycast = () => {}; // ignore clicks
+    this.scene.add(animated);
+
+    const from = animated.position.clone();
+    const dx = (toCol - fromCol) * SPACING;
+    const dz = (toRow - fromRow) * SPACING;
+    const to = from.clone().add(new THREE.Vector3(dx, 0, dz));
+
+    this.attackAnimation = {
+      mesh: animated,
+      from,
+      to,
+      fromCoords: sourcePos,
+      toCoords: destPos,
+      elapsed: 0,
+      duration: 0.4,
+      arcHeight: 0.35,
+    };
   }
 }

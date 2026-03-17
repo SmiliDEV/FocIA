@@ -4,10 +4,12 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { OutlinePass } from "three/addons/postprocessing/OutlinePass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
-import { BoardState, BoardObject } from "./ui/ui.js";
+import { BoardObject } from "./ui/ui.js";
 const focusBoard = document.getElementById("board");
 if (!focusBoard)
     throw new Error("Element #board not found");
+//const timer = new THREE.Timer();
+const clock = new THREE.Clock();
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0f172a);
 const raycaster = new THREE.Raycaster();
@@ -49,7 +51,6 @@ const light = new THREE.DirectionalLight(0xffffff, 1.2);
 light.position.set(2, 4, 2);
 scene.add(light);
 scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-const board = new BoardState();
 const boardObject = new BoardObject(scene, selectedOutlinePass, intersectedOutlinePass, targetOutlinePass);
 const p = (color) => ({ color });
 const testBoard = [
@@ -70,6 +71,7 @@ const testBoard = [
 boardObject.setBoard(testBoard);
 function animate() {
     requestAnimationFrame(animate);
+    boardObject.update(clock.getDelta());
     controls.update();
     composer.render();
 }

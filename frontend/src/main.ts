@@ -4,13 +4,13 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { OutlinePass } from "three/addons/postprocessing/OutlinePass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
-import { BoardState, BoardObject, Stack, Color, Piece } from "./ui/ui.js";
-
-
+import { BoardObject, Stack, Color, Piece } from "./ui/ui.js";
 
 const focusBoard = document.getElementById("board");
 if (!focusBoard) throw new Error("Element #board not found");
 
+//const timer = new THREE.Timer();
+const clock = new THREE.Clock();
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0f172a);
 
@@ -21,7 +21,7 @@ const camera = new THREE.PerspectiveCamera(
   45,
   window.innerWidth / window.innerHeight,
   0.1,
-  100
+  100,
 );
 camera.position.set(0, 1, 3);
 
@@ -37,17 +37,17 @@ composer.addPass(new RenderPass(scene, camera));
 const intersectedOutlinePass = new OutlinePass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
   scene,
-  camera
+  camera,
 );
 const selectedOutlinePass = new OutlinePass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
   scene,
-  camera
+  camera,
 );
 const targetOutlinePass = new OutlinePass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
   scene,
-  camera
+  camera,
 );
 intersectedOutlinePass.edgeStrength = 4;
 intersectedOutlinePass.edgeGlow = 0;
@@ -78,36 +78,37 @@ light.position.set(2, 4, 2);
 scene.add(light);
 scene.add(new THREE.AmbientLight(0xffffff, 0.4));
 
-const board = new BoardState();
 const boardObject = new BoardObject(
   scene,
   selectedOutlinePass,
   intersectedOutlinePass,
-  targetOutlinePass
+  targetOutlinePass,
 );
 
 const p = (color: Color): Piece => ({ color });
 
-
 const testBoard: Stack[][] = [
-	[null, null, [], [], null, null],
-	[
-		null,
-		[p("green"), p("red")],
-		[p("green"), p("red")],
-		[p("red"), p("green")],
-		[p("red"), p("green")],
-		null,
-	],
-	[[], [p("red")], [p("red")], [p("green")], [p("green")], []],
-	[[], [p("green")], [p("green")], [p("red")], [p("red")], []],
-	[null, [p("red")], [p("red")], [p("green")], [p("green")], null],
-	[null, null, [], [], null, null],
+  [null, null, [], [], null, null],
+  [
+    null,
+    [p("green"), p("red")],
+    [p("green"), p("red")],
+    [p("red"), p("green")],
+    [p("red"), p("green")],
+    null,
+  ],
+  [[], [p("red")], [p("red")], [p("green")], [p("green")], []],
+  [[], [p("green")], [p("green")], [p("red")], [p("red")], []],
+  [null, [p("red")], [p("red")], [p("green")], [p("green")], null],
+  [null, null, [], [], null, null],
 ];
 boardObject.setBoard(testBoard);
 
 function animate() {
   requestAnimationFrame(animate);
+
+	boardObject.update(clock.getDelta());
+
   controls.update();
   composer.render();
 }
@@ -187,7 +188,10 @@ canvas.addEventListener("pointerup", (event: PointerEvent) => {
 
 function resizeRendererToContainer() {
   const rect = focusBoard?.getBoundingClientRect();
-  const side = Math.max(1, Math.floor(Math.min(rect?.width || 0, rect?.height || 0)));
+  const side = Math.max(
+    1,
+    Math.floor(Math.min(rect?.width || 0, rect?.height || 0)),
+  );
 
   camera.aspect = 1;
   camera.updateProjectionMatrix();
