@@ -10,7 +10,7 @@ export function alphabeta(
     evalFn: (state: FocusState, player: string) => number
 ): { action: Action | null, value: number } {
     
-    const player = maximizingPlayer ? state.to_move : state.other(); 
+    const player = maximizingPlayer ? state.to_move : (state.to_move === 'RED' ? 'GREEN' : 'RED'); 
 
 
     if (depth === 0 || game.terminalTest(state)) {

@@ -31,8 +31,8 @@ export function handleAIPlay() {
     }
     const aiResult = alphabeta(mainGame, currentState, 3, -Infinity, Infinity, true, evalFn);
     if (aiResult.action) {
-        return currentState.applyAction(aiResult.action);
-        
+        const event = currentState.applyAction(aiResult.action);
+        return { event: event, state: currentState.toJSON() };
     } else {
         return { error: 'AI could not find a move' };
     }

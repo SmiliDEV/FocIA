@@ -5,27 +5,43 @@ export const TAMANHO_TABULEIRO = 4;
 export type Board = Map<string, string[]>;
 export type Reserve = { [key: string]: number };
 export type Captured = { [key: string]: number };
-export type MoveAction = { kind: 'move', from: string, direction: string };
-export type ReserveAction = { kind: 'reserve', dest: string };
+export type MoveAction = { kind: 'MOVE', src: Coords, dest: Coords };
+export type ReserveAction = { kind: 'RESERVE', dest: Coords };
 export type Action = MoveAction | ReserveAction;
+export type Coords = { x: number, y: number };
+export const equals = (a: Coords, b: Coords) => a.x === b.x && a.y === b.y;
 
-export interface GameEvent {
-    // sqe pode haver mais tipos dps 
-    type: 'action_completed';
-    action: Action;            // A ação que foi executada
-    player: string;            // Quem executou a ação
-    
+// Helpers to maintain string O(1) map lookups but use Coords everywhere else
+export const toKey = (c: Coords) => `${c.x},${c.y}`;
+export const toCoords = (key: string): Coords => { 
+    const [x, y] = key.split(','); 
+    return { x: Number(x), y: Number(y) }; 
+};
 
-    sourcePos: string | null;  // Posição de origem (null se for da reserva)
-    destPos: string;           // Posição de destino
-    finalSourceStack: string[];// Estado da pilha de origem após o movimento
-    finalDestStack: string[];  // Estado da pilha de destino após o movimento
-    
-    // Consequências
-    captured: number;          // Quantas peças foram capturadas nesta jogada
-    reserved: number;          // Quantas peças foram para a reserva nesta jogada
-    winner: string | null;     // Se a jogada terminou o jogo, quem venceu?
+export interface MoveEvent {
+    type: 'MOVE';
+    action: MoveAction;
+    player: string;
+    sourcePos: Coords;
+    destPos: Coords;
+    finalDestStack: string[];
+    captured: number;
+    reserved: number;
+    winner: string | null;
 }
+
+export interface ReserveEvent {
+    type: 'RESERVE';
+    action: ReserveAction;
+    player: string;
+    destPos: Coords;
+    finalDestStack: string[];
+    captured: number;
+    reserved: number;
+    winner: string | null;
+}
+
+export type GameEvent = MoveEvent | ReserveEvent;
 
 export function getAllPositions(boardSize: number = TAMANHO_TABULEIRO): Set<string> {
     const positions = new Set<string>();
@@ -95,131 +111,136 @@ export class FocusState {
         this.n_jogadas = n_jogadas;
     }
 
-    isValidPosition(pos: string): boolean {
-        return ALL_POSITIONS.has(pos);
+    isValidPosition(pos: Coords): boolean {
+        return ALL_POSITIONS.has(toKey(pos));
     }
 
-    getPieceStack(pos: string): string[] {
-        return this.board.get(pos) || [];
+    getPieceStack(pos: Coords): string[] {
+        return this.board.get(toKey(pos)) || [];
     }
 
-    topPiece(pos: string): string | null {
-        return this.board.get(pos)?.at(-1) || null;
+    topPiece(pos: Coords): string | null {
+        return this.board.get(toKey(pos))?.at(-1) || null;
+    }
+    verifyPosition(srcPos: Coords, destPos: Coords, player: string): boolean {
+        const srcStack = this.getPieceStack(srcPos);
+        if (srcStack.length === 0 || srcStack.at(-1) !== player) {
+            return false; 
+        } 
+        const steps = srcStack.length;
+        const dx = destPos.x - srcPos.x;
+        const dy = destPos.y - srcPos.y;
+        const isOrthogonal = (Math.abs(dx) === steps && dy === 0) || (Math.abs(dy) === steps && dx === 0);
+        return isOrthogonal && this.isValidPosition(destPos);
     }
 
-    calculateNewPosition(pos: string, direction: string, steps: number): string {
-        const [x, y] = pos.split(',').map(Number);
+    calculateNewPosition(pos: Coords, direction: string, steps: number): Coords {
+        const { x, y } = pos;
         switch (direction) {
-            case 'up': return `${x},${y - steps}`;
-            case 'down': return `${x},${y + steps}`;
-            case 'left': return `${x - steps},${y}`;
-            case 'right': return `${x + steps},${y}`;
+            case 'up': return { x, y: y - steps };
+            case 'down': return { x, y: y + steps };
+            case 'left': return { x: x - steps, y };
+            case 'right': return { x: x + steps, y };
         }
         return pos;
     }
 
+
+    // Para IA
     possibleMoves(): Action[] {
         const moves: Action[] = [];
         const boardEntries = Array.from(this.board.entries());
 
-        for (const [pos, stack] of boardEntries) {
+        for (const [posKey, stack] of boardEntries) {
+            const pos = toCoords(posKey);
             if (stack.length > 0 && stack.at(-1) === this.to_move) {
                 for (const direction of ['up', 'down', 'left', 'right']) {
                     const newPos = this.calculateNewPosition(pos, direction, stack.length);
                     if (this.isValidPosition(newPos)) {
-                        moves.push({ kind: 'move', from: pos, direction: direction });
+                        moves.push({ kind: 'MOVE', src: pos, dest: newPos });
                     }
                 }
             }
         }
 
         if (this.reserve[this.to_move] > 0) {
-            for (const pos of ALL_POSITIONS) {
-                moves.push({ kind: 'reserve', dest: pos });
+            for (const posKey of ALL_POSITIONS) {
+                const destStack = this.board.get(posKey) || [];
+                if (destStack.length < MAX_ALTURA_PILHA) {
+                    moves.push({ kind: 'RESERVE', dest: toCoords(posKey) });
+                }
             }
         }
 
         return moves;
     }
 
-    /**
-     * Aplica uma ação e retorna um evento descrevendo o que aconteceu.
-     */
     applyAction(action: Action): GameEvent {
         const currentPlayer = this.to_move;
-        let sourcePos: string | null = null;
-        let destPos = '';
-        
-        // Resultados do ajuste da pilha
-        let moveEffects = { captured: 0, reserved: 0 };
 
-        if (action.kind === 'reserve') {
-            destPos = action.dest;
-            const stack = this.board.get(destPos) || [];
+        if (action.kind === 'RESERVE') {
+            const destKey = toKey(action.dest);
+            const stack = this.board.get(destKey) || [];
             
             // Colocar peça da reserva
-            this.board.set(destPos, [...stack, this.to_move]);
+            this.board.set(destKey, [...stack, this.to_move]);
             this.reserve[this.to_move]--;
-            
-            // Verificar altura
-            moveEffects = this.adjustStack(destPos);
+            this.adjustStack(destKey);
+
+            this.n_jogadas++;
+            const winner = this.winner();
+            this.to_move = this.to_move === 'RED' ? 'GREEN' : 'RED';
+
+            return {
+                type: 'RESERVE',
+                action: action,
+                player: currentPlayer,
+                destPos: action.dest,
+                finalDestStack: this.board.get(destKey) || [],
+                captured: this.captured[currentPlayer],
+                reserved: this.reserve[currentPlayer],
+                winner: winner 
+            };
         } else {
-            sourcePos = action.from;
-            const direction = action.direction;
-            const stack = this.board.get(sourcePos)!;
-            const steps = stack.length;
-            const newPos = this.calculateNewPosition(sourcePos, direction, steps);
-            destPos = newPos; // Para o evento
+            const sourceKey = toKey(action.src);
+            const destKey = toKey(action.dest);
             
-            const movingStack = stack;
-            this.board.delete(sourcePos); // Esvazia origem
+            const movingStack = this.board.get(sourceKey)!;
+            this.board.delete(sourceKey); // Esvazia origem
 
-            const destStack = this.board.get(newPos) || [];
-            this.board.set(newPos, [...destStack, ...movingStack]);
-            
-            // Verificar altura na nova posição
-            moveEffects = this.adjustStack(newPos);
+            const destStack = this.board.get(destKey) || [];
+            this.board.set(destKey, [...destStack, ...movingStack]);
+            this.adjustStack(destKey);
+
+            this.n_jogadas++;
+            const winner = this.winner();
+            this.to_move = this.to_move === 'RED' ? 'GREEN' : 'RED';
+
+            return {
+                type: 'MOVE',
+                action: action,
+                player: currentPlayer,
+                sourcePos: action.src,
+                destPos: action.dest,
+                finalDestStack: this.board.get(destKey) || [],
+                captured: this.captured[currentPlayer],
+                reserved: this.reserve[currentPlayer],
+                winner: winner 
+            };
         }
-        // importante pros eventos 
-        this.n_jogadas++;
-        const winner = this.winner();
-        this.to_move = this.to_move === 'RED' ? 'GREEN' : 'RED';
-
-        return {
-            type: 'action_completed',
-            action: action,
-            player: currentPlayer,
-            sourcePos: sourcePos,
-            destPos: destPos,
-            finalSourceStack: sourcePos ? (this.board.get(sourcePos) || []) : [], // Deve estar vazia se foi 'move'
-            finalDestStack: this.board.get(destPos) || [],
-            captured: moveEffects.captured,
-            reserved: moveEffects.reserved,
-            winner: winner
-        };
     }
 
-    private adjustStack(pos: string): { captured: number, reserved: number } {
+    private adjustStack(pos: string): void {
         const stack = this.board.get(pos)!;
-        let capturedCount = 0;
-        let reservedCount = 0;
 
         while (stack.length > MAX_ALTURA_PILHA) {
-            const removed = stack.shift()!; // Remove da base (índice 0)
+            const removed = stack.shift()!; 
             if (removed === this.to_move) {
                 this.reserve[this.to_move]++;
-                reservedCount++;
             } else {
                 this.captured[this.to_move]++;
-                capturedCount++;
             }
         }
-        
-        return { captured: capturedCount, reserved: reservedCount };
-    }
-
-    other(): string {
-        return this.to_move === 'RED' ? 'GREEN' : 'RED';
     }
 
     winner(): string | null {
