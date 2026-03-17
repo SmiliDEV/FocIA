@@ -1,4 +1,4 @@
-import { FocusState, FocusGame, TAMANHO_TABULEIRO, Board } from './focus2';
+import { FocusState, FocusGame, TAMANHO_TABULEIRO, Board } from '../game/focus';
 
 const WIN_BASE = 1_000_000;
 
@@ -142,9 +142,7 @@ function mobilityPossibleMoves(estado: FocusState, jogador: string): number {
 
     let count = 0;
     for (const m of moves) {
-        if (m.kind !== 'reserve') { // we only count board moves as mobility usually? Or all?
-             // Python version: return sum(1 for m in moves if not (isinstance(m[0], str) and m[0] == 'reserve'))
-             // Meaning exclude reserve moves.
+        if (m.kind !== 'RESERVE') { 
             count++;
         }
     }
