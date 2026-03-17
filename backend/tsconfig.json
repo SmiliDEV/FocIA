@@ -2,6 +2,10 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "CommonJS",
+    "baseUrl": ".",
+    "paths": {
+      "@shared-types": ["../types/shared.d.ts"]
+    },
     "rootDir": "./",
     "outDir": "./build",
     "esModuleInterop": true,
@@ -9,6 +13,6 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["**/*.ts"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules"]
 }

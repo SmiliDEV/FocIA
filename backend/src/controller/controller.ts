@@ -1,4 +1,4 @@
-import { FocusGame, FocusState, Action, cloneState } from '../src/game/focus';
+import { FocusGame, FocusState, Action, cloneState } from '../game/focus';
 import { alphabeta } from '../AI/alfaBeta';
 import { evalFn } from '../AI/focIA';
 
@@ -8,12 +8,12 @@ let currentState: FocusState | null = null;
 export function handleStartGame() {
     mainGame = new FocusGame();
     currentState = cloneState(mainGame.initialState);
-
-    return {
+    
+    return { 
         message: 'Game started successfully',
-        state: currentState.toJSON()
+        state: currentState.toJSON() 
     };
-}
+} 
 
 export function handleUserMovement(req: { action: Action }) {
     if (!mainGame || !currentState) {
@@ -21,7 +21,7 @@ export function handleUserMovement(req: { action: Action }) {
     }
     const userAction = req.action;
     const event = currentState.applyAction(userAction);
-
+    
     return { event: event, state: currentState.toJSON() };
 }
 

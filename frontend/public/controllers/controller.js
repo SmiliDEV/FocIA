@@ -15,8 +15,7 @@ export class GameController {
             // setBoardObject here
         }
     }
-
-		async processMove(src, dest, quantity) {
+    async processMove(src, dest, quantity) {
         const response = await userPlay({ kind: 'MOVE', src, dest, quantity });
         if (response.error) {
             console.error('Movimento inválido:', response.error);
@@ -26,7 +25,6 @@ export class GameController {
         this.boardObject.animateMove(event.sourcePos, event.destPos, event.finalDestStack);
         await this.processAITurn();
     }
-
     async processReserve(dest) {
         const response = await userPlay({ kind: 'RESERVE', dest });
         if (response.error) {

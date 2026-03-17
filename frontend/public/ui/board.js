@@ -32,7 +32,7 @@ export class BoardObject {
     intersectedOutlinePass;
     targetOutlinePass;
     // game state
-    turn = "green";
+    turn = "red";
     players = {
         red: { color: "red", capturedPieces: 0, reservedPieces: 2 },
         green: { color: "green", capturedPieces: 0, reservedPieces: 2 },

@@ -2,6 +2,10 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "ES2022",
+		"baseUrl": ".",
+    "paths": {
+      "@shared-types": ["../types/shared.d.ts"]
+    },
     "moduleResolution": "Bundler",
     "strict": true,
     "sourceMap": true,
