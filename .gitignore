@@ -3,8 +3,8 @@
 
 # build
 /backend/build/
-/frontend/public/*.js
-/frontend/public/*.js.map
+/frontend/public/**/*.js
+/frontend/public/**/*.js.map
 
 # ambient
 .env
