@@ -22,12 +22,18 @@ export type ReserveCount = Record<PlayerColor, number>;
 export type CapturedCount = Record<PlayerColor, number>;
 export type BoardEntry = [string, string[]];
 
+export type FocusBoardConfig = {
+	size: number;
+	maxStackHeight: number;
+	maxPlays: number;
+};
+
 export type FocusStateDTO = {
   to_move: PlayerColor;
   board: BoardEntry[];
   reserve: ReserveCount;
   captured: CapturedCount;
-  n_jogadas: number;
+  n_plays: number;
 };
 
 export type MoveEvent = {
@@ -55,8 +61,8 @@ export type ReserveEvent = {
 
 export type GameEvent = MoveEvent | ReserveEvent;
 
-export type StartGameResponse = {
-  message: string;
+export type GetGameResponse = {
+	config: FocusBoardConfig;
   state: FocusStateDTO;
 };
 

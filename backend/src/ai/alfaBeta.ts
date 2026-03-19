@@ -1,16 +1,17 @@
+import { PlayerColor } from '@shared-types';
 import { FocusGame, FocusState, cloneState, Action } from '../game/focus';
 
 export function alphabeta(
-    game: FocusGame, 
-    state: FocusState, 
-    depth: number, 
-    alpha: number = -Infinity, 
-    beta: number = Infinity, 
+    game: FocusGame,
+    state: FocusState,
+    depth: number,
+    alpha: number = -Infinity,
+    beta: number = Infinity,
     maximizingPlayer: boolean = true,
-    evalFn: (state: FocusState, player: string) => number
+    evalFn: (state: FocusState, player: PlayerColor) => number
 ): { action: Action | null, value: number } {
-    
-    const player = maximizingPlayer ? state.to_move : (state.to_move === 'RED' ? 'GREEN' : 'RED'); 
+
+    const player = maximizingPlayer ? state.to_move : (state.to_move === 'RED' ? 'GREEN' : 'RED');
 
 
     if (depth === 0 || game.terminalTest(state)) {
@@ -32,9 +33,9 @@ export function alphabeta(
         for (const action of actions) {
             const childState = cloneState(state);
             game.result(childState, action);
-            
+
             const result = alphabeta(game, childState, depth - 1, alpha, beta, false, evalFn);
-            
+
             if (result.value > value) {
                 value = result.value;
                 bestAction = action;
@@ -48,9 +49,9 @@ export function alphabeta(
         for (const action of actions) {
             const childState = cloneState(state);
             game.result(childState, action);
-            
+
             const result = alphabeta(game, childState, depth - 1, alpha, beta, true, evalFn);
-            
+
             if (result.value < value) {
                 value = result.value;
                 bestAction = action;

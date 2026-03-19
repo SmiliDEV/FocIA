@@ -8,7 +8,6 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
-// 1. Endpoint para iniciar ou reiniciar um jogo
 app.post('/api/start', (req, res) => {
     try {
         const result = handleStartGame();
@@ -18,7 +17,6 @@ app.post('/api/start', (req, res) => {
     }
 });
 
-// 2. Endpoint para o user tentar fazer um movimento
 app.post('/api/play/user', (req, res) => {
     try {
         const action = req.body.action;
@@ -35,7 +33,6 @@ app.post('/api/play/user', (req, res) => {
     }
 });
 
-// 3. Endpoint para pedir à IA para jogar
 // Aqui req pode ser vazio, a IA vai jogar com base no estado atual guardado no backend
 app.post('/api/play/ai', (req, res) => {
     try {

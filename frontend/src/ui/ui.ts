@@ -4,9 +4,10 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { OutlinePass } from "three/addons/postprocessing/OutlinePass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
-import { BoardObject, Stack, Color, Piece } from "./board.js";
+import { BoardObject, Stack, Piece } from "./board.js";
 import { GameController } from "../controllers/controller.js";
 import { xor } from "three/tsl";
+import { PlayerColor } from "@shared-types";
 
 const focusBoard = document.getElementById("board");
 
@@ -57,21 +58,21 @@ let boardObject: BoardObject;
 let controller: GameController;
 
 // temp
-const p = (color: Color): Piece => ({ color });
+const p = (color: PlayerColor): Piece => ({ color });
 
 const testBoard: Stack[][] = [
   [null, null, [], [], null, null],
   [
     null,
-    [p("green"), p("red")],
-    [p("green"), p("red")],
-    [p("red"), p("green")],
-    [p("red"), p("green")],
+    [p("GREEN"), p("RED")],
+    [p("GREEN"), p("RED")],
+    [p("RED"), p("GREEN")],
+    [p("RED"), p("GREEN")],
     null,
   ],
-  [[], [p("red")], [p("red")], [p("green")], [p("green")], []],
-  [[], [p("green")], [p("green")], [p("red")], [p("red")], []],
-  [null, [p("red")], [p("red")], [p("green")], [p("green")], null],
+  [[], [p("RED")], [p("RED")], [p("GREEN")], [p("GREEN")], []],
+  [[], [p("GREEN")], [p("GREEN")], [p("RED")], [p("RED")], []],
+  [null, [p("RED")], [p("RED")], [p("GREEN")], [p("GREEN")], null],
   [null, null, [], [], null, null],
 ];
 //
@@ -131,7 +132,7 @@ export function loadUI() {
     intersectedOutlinePass,
     targetOutlinePass,
   );
-  boardObject.setBoardMesh(testBoard);
+  //boardObject.setBoardMesh(testBoard);
 
 	// controller config
 	controller = new GameController(boardObject);
@@ -220,17 +221,19 @@ canvas.addEventListener("pointerup", (event: PointerEvent) => {
 
   if (intersects.length > 0) {
     const isReservePlay = boardObject.isReservePlay(intersects[0].object);
+		
     if (isReservePlay) {
-			//console.log("reserve play detected at", isReservePlay.destPos);
-			const dest = { x: isReservePlay.destPos.row, y: isReservePlay.destPos.col };
+			console.log("reserve play detected at", isReservePlay.destPos);
+			const dest = { x: isReservePlay.destPos.x, y: isReservePlay.destPos.y };
 			controller.processReserve(dest);
       return;
     }
+
     const isMovePlay = boardObject.isMovePlaying(intersects[0].object);
     if (isMovePlay) {
 			//console.log("move play detected from", isMovePlay.sourcePos, "to", isMovePlay.destPos);
-      const src = { x: isMovePlay.sourcePos.row, y: isMovePlay.sourcePos.col };
-			const dest = { x: isMovePlay.destPos.row, y: isMovePlay.destPos.col };
+      const src = { x: isMovePlay.sourcePos.x, y: isMovePlay.sourcePos.y };
+			const dest = { x: isMovePlay.destPos.x, y: isMovePlay.destPos.y };
 			controller.processMove(src, dest, 1);
       return;
     }

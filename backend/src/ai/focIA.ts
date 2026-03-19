@@ -1,4 +1,5 @@
-import { FocusState, FocusGame, TAMANHO_TABULEIRO, Board } from '../game/focus';
+import { FocusState } from '../game/focus';
+import type { PlayerColor } from '@shared-types';
 
 const WIN_BASE = 1_000_000;
 
@@ -30,16 +31,16 @@ export const WEIGHTS_SECOND: Weights = {
     "w_mob": 3.2913805868475463
 };
 
-function centerValue(posKey: string, jogador: string, estado: FocusState): number {
+function centerValue(posKey: string, jogador: PlayerColor, estado: FocusState): number {
     const stack = estado.board.get(posKey);
     if (stack && stack.length > 0) {
         const topPiece = stack[stack.length - 1]; // topPiece logic from TS state
         const [x, y] = posKey.split(',').map(Number);
-        
+
         // Python: c = 1.0 - (abs(pos[0] - 1.5) + abs(pos[1] - 1.5)) / 3.0
         let c = 1.0 - (Math.abs(x - 1.5) + Math.abs(y - 1.5)) / 3.0;
         c = Math.max(0.0, Math.min(c, 1.0));
-        
+
         return topPiece === jogador ? c : -c;
     }
     return 0.0;
@@ -47,21 +48,21 @@ function centerValue(posKey: string, jogador: string, estado: FocusState): numbe
 
 type PosInfo = { x: number, y: number, h: number };
 
-function singlePassFeatures(estado: FocusState, jogador: string, needCenter: boolean = true, needOrtho: boolean = true): { sumCenter: number, sumOrtho: number } {
+function singlePassFeatures(estado: FocusState, jogador: PlayerColor, needCenter: boolean = true, needOrtho: boolean = true): { sumCenter: number, sumOrtho: number } {
     const opponent = jogador === 'RED' ? 'GREEN' : 'RED';
     let centerSum = 0.0;
-    
+
     // Map<coordinate, Array<{other_coord, height}>>
     const ownByRow = new Map<number, {c: number, h: number}[]>();
     const ownByCol = new Map<number, {c: number, h: number}[]>();
     const oppByRow = new Map<number, {c: number, h: number}[]>();
     const oppByCol = new Map<number, {c: number, h: number}[]>();
-    
+
     const ownPositions: PosInfo[] = [];
 
     for (const [posKey, stack] of estado.board.entries()) {
         if (!stack || stack.length === 0) continue;
-        
+
         const [x, y] = posKey.split(',').map(Number);
         const top = stack[stack.length - 1];
         const h = stack.length;
@@ -73,19 +74,19 @@ function singlePassFeatures(estado: FocusState, jogador: string, needCenter: boo
         if (needOrtho) {
             if (top === jogador) {
                 ownPositions.push({ x, y, h });
-                
+
                 if (!ownByRow.has(x)) ownByRow.set(x, []);
                 ownByRow.get(x)!.push({ c: y, h });
-                
+
                 if (!ownByCol.has(y)) ownByCol.set(y, []);
                 ownByCol.get(y)!.push({ c: x, h });
-                
+
             } else if (top === opponent) {
                 // oppPositions.push({ x, y, h });
-                
+
                 if (!oppByRow.has(x)) oppByRow.set(x, []);
                 oppByRow.get(x)!.push({ c: y, h });
-                
+
                 if (!oppByCol.has(y)) oppByCol.set(y, []);
                 oppByCol.get(y)!.push({ c: x, h });
             }
@@ -104,7 +105,7 @@ function singlePassFeatures(estado: FocusState, jogador: string, needCenter: boo
                 const d = Math.abs(y - oy);
                 if (d > 0 && oh === d) lineThreats++;
             }
-            
+
             // Threats from opponent in same col
             const oppsInCol = oppByCol.get(y) || [];
             for (const { c: ox, h: oh } of oppsInCol) {
@@ -132,9 +133,9 @@ function singlePassFeatures(estado: FocusState, jogador: string, needCenter: boo
     return { sumCenter: centerSum, sumOrtho: orthoLine };
 }
 
-function mobilityPossibleMoves(estado: FocusState, jogador: string): number {
+function mobilityPossibleMoves(estado: FocusState, jogador: PlayerColor): number {
     const originalPlayer = estado.to_move;
-    
+
     // Force player
     estado.to_move = jogador;
     const moves = estado.possibleMoves();
@@ -142,22 +143,22 @@ function mobilityPossibleMoves(estado: FocusState, jogador: string): number {
 
     let count = 0;
     for (const m of moves) {
-        if (m.kind !== 'RESERVE') { 
+        if (m.kind !== 'RESERVE') {
             count++;
         }
     }
     return count;
 }
 
-export function evalFn(estado: FocusState, jogador: string): number {
+export function evalFn(estado: FocusState, jogador: PlayerColor): number {
     const winner = estado.winner();
     if (winner !== null) {
-        const d = estado.n_jogadas;
+        const d = estado.n_plays;
         return winner === jogador ? (WIN_BASE - d) : -(WIN_BASE - d);
     }
 
-    const opponent = jogador === 'RED' ? 'GREEN' : 'RED';    
-    const w = (estado.n_jogadas === 0) ? WEIGHTS_FIRST : WEIGHTS_SECOND;
+    const opponent = jogador === 'RED' ? 'GREEN' : 'RED';
+    const w = (estado.n_plays === 0) ? WEIGHTS_FIRST : WEIGHTS_SECOND;
 
     const wc = w.w_center || 0.0;
     const wo = w.w_ortho || 0.0;
@@ -202,7 +203,7 @@ export function evalFn(estado: FocusState, jogador: string): number {
     if (Math.abs(wres) > 1e-12) val += wres * resDiff;
     if (Math.abs(wpiles) > 1e-12) val += wpiles * pilesDiff;
     if (Math.abs(wmob) > 1e-12) val += wmob * mobilityTerm;
-  
+
 
     const maxNt = WIN_BASE * 0.25;
     if (val > maxNt) val = maxNt;

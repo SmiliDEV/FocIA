@@ -8,7 +8,7 @@
     },
     "moduleResolution": "Bundler",
     "strict": true,
-    "sourceMap": true,
+    "sourceMap": false,
     "rootDir": "src",
     "outDir": "public",
     "noEmitOnError": true
