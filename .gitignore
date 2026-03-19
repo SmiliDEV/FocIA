@@ -1,5 +1,26 @@
-node_modules
-built
-build
+# dependencies
+**/node_modules/
+
+# build
+/backend/build/
+/frontend/public/*.js
+/frontend/public/*.js.map
+
+# ambient
 .env
-test*
+.env.*
+!.env.example
+
+# tests and coverage
+**/coverage/
+.vitest/
+
+# logs
+*.log
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/
+.idea/
+*.swp
